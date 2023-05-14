@@ -2,20 +2,26 @@ use std::collections::HashMap;
 
 use rusqlite::{Connection,Result, params};
 
-struct StorageWatchItem {
-    id: i32,
-    url: String,
-}
+// struct StorageWatchItem {
+//     id: i32,
+//     url: String,
+// }
 
-struct StorageEntry {
-    price: f64,
-    created_at: i64,
-    item_id: i32,
-}
+// struct StorageEntry {
+//     price: f64,
+//     created_at: i64,
+//     item_id: i32,
+// }
 
+// Exposing public structs without storage implementations
 pub struct Entry {
     price: f64,
     created_at: i64
+}
+
+// Exposing public structs without storage implementations
+pub struct WatchItem {
+    url: String,
 }
 
 pub type EntryMap = HashMap<String, Vec<Entry>>;
@@ -52,6 +58,17 @@ fn delete_watch_item(conn: &Connection, item_id: i32) -> Result<()> {
     conn.execute("DELETE FROM watchitems WHERE id = ?1", &[&item_id])?;
     conn.execute("DELETE FROM entries WHERE item_id = ?1", &[&item_id])?;
     Ok(())
+}
+
+fn list_watch_items(conn: &Connection) -> Result<Vec<WatchItem>> {
+    let mut stmt = conn.prepare("select url from watchitems")?;
+    let watchitems = stmt.query_map([], |row| {
+        Ok(WatchItem {
+            url: row.get(0)?,
+        })
+    })?.map(|it| it.unwrap() ).collect::<Vec<WatchItem>>(); // TODO: unwrap copuld panic!
+
+    Ok(watchitems)
 }
 
 fn add_entry(conn: &Connection, price: f64, created_at: i64, item_id: i32) -> Result<()> {
@@ -141,6 +158,7 @@ mod tests {
         assert_eq!(count, 1);
     }
 
+    #[test]
     fn test_get_entries() {
         let conn = Connection::open_in_memory().unwrap();
         create_tables(&conn).unwrap();
@@ -160,5 +178,25 @@ mod tests {
         let entry = &entries_vec[0];
         assert_eq!(entry.price, 19.99);
         assert_eq!(entry.created_at, 1621000000);
+    }
+
+    #[test]
+    fn test_list_watch_items() {
+        let conn = Connection::open_in_memory().unwrap();
+        create_tables(&conn).unwrap();
+
+        add_watch_item(&conn, "https://example.com/item1").unwrap();
+        add_watch_item(&conn, "https://example.com/item2").unwrap();
+
+        let watch_items = list_watch_items(&conn).unwrap();
+
+        // Verify the result
+        assert_eq!(watch_items.len(), 2);
+
+        let watch_item_1 = watch_items.get(0).unwrap();
+        assert_eq!(watch_item_1.url, "https://example.com/item1");
+
+        let watch_item_2 = watch_items.get(1).unwrap();
+        assert_eq!(watch_item_2.url, "https://example.com/item2");
     }
 }
