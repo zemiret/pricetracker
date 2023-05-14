@@ -1,7 +1,7 @@
-# PROJECT_PATH := .
 EXECUTABLE := pricetracker 
+DBSETUPEXECUTABLE := dbsetup
 
-.PHONY: all compile schedule clean
+.PHONY: all compile schedule clean run dbsetup test
 
 all: compile schedule_cron schedule_anacron
 
@@ -18,3 +18,12 @@ schedule_anacron:
 
 clean:
 	@cargo clean
+
+run:
+	@cargo run --bin $(EXECUTABLE) 
+
+dbsetup:
+	@cargo run --bin $(DBSETUPEXECUTABLE)
+
+test:
+	@cargo test
