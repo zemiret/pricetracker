@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rusqlite::{Connection,Result, params};
+use rusqlite::{params, Connection, Result};
 
 // struct StorageWatchItem {
 //     id: i32,
@@ -16,7 +16,7 @@ use rusqlite::{Connection,Result, params};
 // Exposing public structs without storage implementations
 pub struct Entry {
     price: f64,
-    created_at: i64
+    created_at: i64,
 }
 
 // Exposing public structs without storage implementations
@@ -62,11 +62,10 @@ fn delete_watch_item(conn: &Connection, item_id: i32) -> Result<()> {
 
 fn list_watch_items(conn: &Connection) -> Result<Vec<WatchItem>> {
     let mut stmt = conn.prepare("select url from watchitems")?;
-    let watchitems = stmt.query_map([], |row| {
-        Ok(WatchItem {
-            url: row.get(0)?,
-        })
-    })?.map(|it| it.unwrap() ).collect::<Vec<WatchItem>>(); // TODO: unwrap copuld panic!
+    let watchitems = stmt
+        .query_map([], |row| Ok(WatchItem { url: row.get(0)? }))?
+        .map(|it| it.unwrap())
+        .collect::<Vec<WatchItem>>(); // TODO: unwrap copuld panic!
 
     Ok(watchitems)
 }
@@ -87,13 +86,14 @@ fn get_entries(conn: &Connection) -> Result<EntryMap> {
     }
 
     let mut stmt = conn.prepare(
-        "select E.price, E.created_at, W.url from entries as E
+        "select E.price, E.created_at, W.url 
+        from entries as E
         join watchitems as W on W.id=E.item_id
-        order by E.created_at 
-        group by W.id"
+        group by W.id
+        order by E.created_at",
     )?;
 
-    let entry_iter = stmt.query_map([],|row| {
+    let entry_iter = stmt.query_map([], |row| {
         Ok(StmtEntry {
             price: row.get(0)?,
             created_at: row.get(1)?,
@@ -112,7 +112,6 @@ fn get_entries(conn: &Connection) -> Result<EntryMap> {
 
     Ok(entries_map)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -166,7 +165,7 @@ mod tests {
         let item_id = add_watch_item(&conn, "https://example.com/item1").unwrap();
         add_entry(&conn, 10.99, 1621000000, item_id).unwrap();
 
-        let entry_map = get_entries(&conn).unwrap();
+        let entry_map: HashMap<String, Vec<Entry>> = get_entries(&conn).unwrap();
 
         // Verify the result
         let entries = entry_map.get("https://example.com/item1");
@@ -176,7 +175,7 @@ mod tests {
         assert_eq!(entries_vec.len(), 1);
 
         let entry = &entries_vec[0];
-        assert_eq!(entry.price, 19.99);
+        assert_eq!(entry.price, 10.99);
         assert_eq!(entry.created_at, 1621000000);
     }
 
