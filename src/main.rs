@@ -2,9 +2,11 @@ mod storage;
 mod extractors;
 mod pricetracker;
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use reqwest::Client;
+use rusqlite::Connection;
 use select::document::Document;
-use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -13,12 +15,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Box::new(extractors::Skalnik{}),
     ];
 
+    let conn = Connection::open("db.db3").expect("could not open DB"); 
+    let watch_items = storage::list_watch_items(&conn).expect("could not list watch items");
     let client = Client::new();
-    let mut page_info_map: HashMap<String, pricetracker::PageInfo> = HashMap::new();
 
-    let file_contents = std::fs::read_to_string("urls.txt")?;
+    for watch_item in watch_items {
+        let url = &watch_item.url;
 
-    for url in file_contents.lines() {
         match extractor_list.iter().find(|e| {
             e.match_url(url)
         }) {
@@ -26,14 +29,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let page_info = get_page_info(&client, url, ext.as_ref())
                     .await
                     .expect("failed getting page info");
-                page_info_map.insert(url.to_string(), page_info);
+
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("duration_since(UNIX_EPOCH)").as_secs();
+                storage::add_entry(&conn, page_info.price, now, watch_item.id).expect("error add_entry");
             } 
             None => {
                 println!("No extractor matched url: {}", url);
             }
         }
-
     }
+
+    let page_info_map = storage::get_entries(&conn).expect("storage.get_entries");
+
+    // let mut page_info_map: HashMap<String, pricetracker::PageInfo> = HashMap::new();
+
+    // let file_contents = std::fs::read_to_string("urls.txt")?;
+
+    // for url in file_contents.lines() {
+    //     match extractor_list.iter().find(|e| {
+    //         e.match_url(url)
+    //     }) {
+    //         Some(ext) => {
+    //             let page_info = get_page_info(&client, url, ext.as_ref())
+    //                 .await
+    //                 .expect("failed getting page info");
+    //             page_info_map.insert(url.to_string(), page_info);
+    //         } 
+    //         None => {
+    //             println!("No extractor matched url: {}", url);
+    //         }
+    //     }
+
+    // }
 
     println!("{:#?}", page_info_map);
 

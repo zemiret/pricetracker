@@ -2,26 +2,17 @@ use std::collections::HashMap;
 
 use rusqlite::{params, Connection, Result};
 
-// struct StorageWatchItem {
-//     id: i32,
-//     url: String,
-// }
 
-// struct StorageEntry {
-//     price: f64,
-//     created_at: i64,
-//     item_id: i32,
-// }
-
-// Exposing public structs without storage implementations
+#[derive(Debug)]
 pub struct Entry {
-    price: f64,
-    created_at: i64,
+    pub price: f32,
+    pub created_at: i64,
 }
 
-// Exposing public structs without storage implementations
+#[derive(Debug)]
 pub struct WatchItem {
-    url: String,
+    pub id: i32,
+    pub url: String,
 }
 
 pub type EntryMap = HashMap<String, Vec<Entry>>;
@@ -48,29 +39,29 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn add_watch_item(conn: &Connection, url: &str) -> Result<i32> {
+ pub fn add_watch_item(conn: &Connection, url: &str) -> Result<i32> {
     conn.execute("INSERT INTO watchitems (url) VALUES (?1)", &[url])?;
     let item_id = conn.last_insert_rowid() as i32;
     Ok(item_id)
 }
 
-fn delete_watch_item(conn: &Connection, item_id: i32) -> Result<()> {
+ pub fn delete_watch_item(conn: &Connection, item_id: i32) -> Result<()> {
     conn.execute("DELETE FROM watchitems WHERE id = ?1", &[&item_id])?;
     conn.execute("DELETE FROM entries WHERE item_id = ?1", &[&item_id])?;
     Ok(())
 }
 
-fn list_watch_items(conn: &Connection) -> Result<Vec<WatchItem>> {
-    let mut stmt = conn.prepare("select url from watchitems")?;
+ pub fn list_watch_items(conn: &Connection) -> Result<Vec<WatchItem>> {
+    let mut stmt = conn.prepare("select id, url from watchitems")?;
     let watchitems = stmt
-        .query_map([], |row| Ok(WatchItem { url: row.get(0)? }))?
+        .query_map([], |row| Ok(WatchItem { id: row.get(0)?, url: row.get(1)? }))?
         .map(|it| it.unwrap())
         .collect::<Vec<WatchItem>>(); // TODO: unwrap copuld panic!
 
     Ok(watchitems)
 }
 
-fn add_entry(conn: &Connection, price: f64, created_at: i64, item_id: i32) -> Result<()> {
+ pub fn add_entry(conn: &Connection, price: f32, created_at: u64, item_id: i32) -> Result<()> {
     conn.execute(
         "INSERT INTO entries (price, created_at, item_id) VALUES (?1, ?2, ?3)",
         params![&price, &created_at, &item_id],
@@ -78,9 +69,9 @@ fn add_entry(conn: &Connection, price: f64, created_at: i64, item_id: i32) -> Re
     Ok(())
 }
 
-fn get_entries(conn: &Connection) -> Result<EntryMap> {
+ pub fn get_entries(conn: &Connection) -> Result<EntryMap> {
     struct StmtEntry {
-        price: f64,
+        price: f32,
         created_at: i64,
         url: String,
     }
