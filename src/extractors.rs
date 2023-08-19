@@ -7,18 +7,10 @@ use select::{
 
 use crate::pricetracker;
 
-pub trait PageInfoExtractor {
-    fn extract_page_info(
-        &self,
-        document: Document,
-    ) -> Result<pricetracker::PageInfo, pricetracker::Error>;
-    fn match_url(&self, url: &str) -> bool;
-    fn label(&self) -> &str;
-}
 
 pub struct Skalnik {}
 
-impl PageInfoExtractor for Skalnik {
+impl pricetracker::PageInfoExtractor for Skalnik {
     fn extract_page_info(
         &self,
         document: Document,
@@ -49,7 +41,7 @@ impl PageInfoExtractor for Skalnik {
 
 pub struct A8a {}
 
-impl PageInfoExtractor for A8a {
+impl pricetracker::PageInfoExtractor for A8a {
     fn extract_page_info(
         &self,
         document: Document,
